@@ -12,7 +12,8 @@ export default function LikedVideos() {
     queryFn: getLikedVideos,
   })
 
-  const videos = Array.isArray(data) ? data : data?.videos || []
+  const raw = Array.isArray(data) ? data : data?.videos || []
+  const videos = raw.map((item) => item.LikedVideos).filter(Boolean)
 
   return (
     <div className="px-4 lg:px-6 py-6 max-w-screen-xl mx-auto">
@@ -41,10 +42,9 @@ export default function LikedVideos() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
-          {videos.map((item) => {
-            const video = item.video || item
-            return <VideoCard key={video._id} video={video} />
-          })}
+          {videos.map((video) => (
+            <VideoCard key={video._id} video={video} />
+          ))}
         </div>
       )}
     </div>

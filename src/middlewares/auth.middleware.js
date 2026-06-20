@@ -25,3 +25,24 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, error?.message || "Invalid access TOken")
   }
 })
+
+// Attaches req.user when a valid token is present, but allows anonymous access.
+export const verifyJWTOptional = asyncHandler(async (req, res, next) => {
+  try {
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "").trim()
+
+    if (!token) {
+      return next()
+    }
+
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+    const user = await User.findById(decodedToken?._id).select("-password -refreshToken")
+
+    if (user) {
+      req.user = user
+    }
+  } catch (error) {
+    // Invalid/expired token on a public route — proceed as anonymous.
+  }
+  next()
+})

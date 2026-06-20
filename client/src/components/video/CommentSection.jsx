@@ -113,7 +113,7 @@ export default function CommentSection({ videoId }) {
     if (newComment.trim()) addMut.mutate()
   }
 
-  const commentList = Array.isArray(comments) ? comments : comments?.docs || []
+  const commentList = Array.isArray(comments) ? comments : comments?.comments || []
 
   return (
     <div className="mt-8">

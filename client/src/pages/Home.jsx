@@ -1,6 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { getVideos } from '../api/videos'
 import VideoRow from '../components/ui/VideoRow'
@@ -8,11 +7,8 @@ import VideoCard from '../components/ui/VideoCard'
 import { SkeletonRow } from '../components/ui/SkeletonCard'
 import EmptyState from '../components/ui/EmptyState'
 
-const CATEGORIES = ['All', 'Trending', 'New', 'Gaming', 'Music', 'Tech', 'Sports', 'Comedy']
-
 export default function Home() {
   const [searchParams] = useSearchParams()
-  const [activeCategory, setActiveCategory] = useState('All')
   const searchQuery = searchParams.get('q') || ''
 
   const isSearching = !!searchQuery
@@ -80,23 +76,6 @@ export default function Home() {
 
   return (
     <div className="py-6">
-      {/* Category chips */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-none px-4 lg:px-6 mb-8 pb-1">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 cursor-pointer ${
-              activeCategory === cat
-                ? 'bg-ct-text text-ct-black'
-                : 'bg-ct-elevated border border-ct-border text-ct-muted hover:text-ct-text hover:border-ct-hover'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
       {/* Rows */}
       {trendingLoading ? (
         <>

@@ -1,4 +1,5 @@
 import multer from 'multer';
+import { ApiError } from '../utils/ApiError.js';
 
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -17,13 +18,13 @@ const fileFilter = (req, file, cb) => {
         if (ALLOWED_VIDEO_TYPES.includes(file.mimetype)) {
             cb(null, true)
         } else {
-            cb(new Error(`Invalid video type: ${file.mimetype}. Allowed: mp4, webm, ogg, quicktime`), false)
+            cb(new ApiError(400, `Invalid video type: ${file.mimetype}. Allowed: mp4, webm, ogg, quicktime`), false)
         }
     } else {
         if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
             cb(null, true)
         } else {
-            cb(new Error(`Invalid image type: ${file.mimetype}. Allowed: jpeg, png, webp, gif`), false)
+            cb(new ApiError(400, `Invalid image type: ${file.mimetype}. Allowed: jpeg, png, webp, gif`), false)
         }
     }
 }

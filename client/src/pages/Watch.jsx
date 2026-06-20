@@ -85,13 +85,13 @@ export default function Watch() {
               </div>
               {owner._id && (
                 <div className="ml-2 flex-shrink-0">
-                  <SubscribeButton channelId={owner._id} subscribed={false} />
+                  <SubscribeButton channelId={owner._id} subscribed={video.isSubscribed} />
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              <LikeButton videoId={videoId} liked={false} likeCount={0} />
+              <LikeButton videoId={videoId} liked={video.isLiked} likeCount={video.likeCount} />
               <button className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-ct-elevated border border-ct-border text-ct-muted hover:text-ct-text hover:border-ct-hover cursor-pointer transition-colors duration-150">
                 <Share2 className="w-4 h-4" />
                 Share

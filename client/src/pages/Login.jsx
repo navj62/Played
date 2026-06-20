@@ -21,7 +21,8 @@ export default function Login() {
   } = useForm()
 
   const { mutate, isPending } = useMutation({
-    mutationFn: login,
+    mutationFn: ({ loginId, password }) =>
+      login({ email: loginId, username: loginId, password }),
     onSuccess: (data) => {
       setUser(data.user)
       navigate(from, { replace: true })
@@ -59,10 +60,10 @@ export default function Login() {
               type="text"
               autoComplete="username"
               placeholder="you@example.com"
-              {...register('email', { required: 'Required' })}
+              {...register('loginId', { required: 'Required' })}
               className="w-full bg-ct-elevated border border-ct-border rounded-lg px-4 py-2.5 text-sm text-ct-text placeholder:text-ct-subtle focus:outline-none focus:border-ct-subtle transition-colors duration-150"
             />
-            {errors.email && <p className="text-xs text-ct-red mt-1">{errors.email.message}</p>}
+            {errors.loginId && <p className="text-xs text-ct-red mt-1">{errors.loginId.message}</p>}
           </div>
 
           <div>

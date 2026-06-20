@@ -108,7 +108,10 @@ const loginUser=asyncHandler(async(req,res)=>{
 
     // this user does not have refreshtoken
     const user=await User.findOne({
-        $or:[{email},{username}]
+        $or:[
+            { email: email?.toLowerCase() },
+            { username: username?.toLowerCase() },
+        ]
     })
 
     if(!user){
@@ -355,11 +358,11 @@ const getUserChannelProfile=asyncHandler(async(req,res)=>{
     //4
     {
         $addFields:{
-            subscibersCount:{
+            subscribersCount:{
                 $size:"$subscribers"
             },
 
-           channelSubsciberdToCount:{
+           channelsSubscribedToCount:{
                 $size:"$subscribedTo"
             },
 
@@ -378,8 +381,8 @@ const getUserChannelProfile=asyncHandler(async(req,res)=>{
         $project:{
             username:1,
             fullName:1,
-            subscibersCount:1,
-             channelSubsciberdToCount:1,
+            subscribersCount:1,
+             channelsSubscribedToCount:1,
              isSubscribed:1,
              avatar:1,
              coverImage:1,
@@ -416,7 +419,7 @@ const getWatchHistory=asyncHandler(async(req,res)=>{
             from:"videos",
             localField:"watchHistory",
             foreignField:"_id",
-            as:"watchHistory",
+            as:"watchHistoryVideos",
             // sub pipeline
             pipeline:[
                 {
@@ -426,7 +429,7 @@ const getWatchHistory=asyncHandler(async(req,res)=>{
                         foreignField:"_id",
                         as:"owner",
                         pipeline:[
-                           { 
+                           {
                             $project:{
                                 username:1,
                                 fullName:1,
@@ -436,7 +439,7 @@ const getWatchHistory=asyncHandler(async(req,res)=>{
                         ]
                     }
                 },
-                
+
                 {
                     $addFields:{
                         owner:{
@@ -446,6 +449,37 @@ const getWatchHistory=asyncHandler(async(req,res)=>{
                 }
 
             ]
+        }
+    },
+    {
+        // $lookup does not preserve array order; re-sort to match watchHistory
+        // (stored most-recent-first), dropping any ids whose video no longer exists.
+        $addFields:{
+            watchHistory:{
+                $filter:{
+                    input:{
+                        $map:{
+                            input:"$watchHistory",
+                            as:"id",
+                            in:{
+                                $let:{
+                                    vars:{
+                                        idx:{ $indexOfArray:["$watchHistoryVideos._id","$$id"] }
+                                    },
+                                    in:{
+                                        $cond:[
+                                            { $gte:["$$idx",0] },
+                                            { $arrayElemAt:["$watchHistoryVideos","$$idx"] },
+                                            null
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    cond:{ $ne:["$$this",null] }
+                }
+            }
         }
     }
    ])

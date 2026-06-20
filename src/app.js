@@ -1,6 +1,8 @@
 import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
+import multer from "multer"
+import { ApiError } from "./utils/ApiError.js"
 const app= express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
@@ -54,5 +56,32 @@ app.use("/api/v1/subscriptions", subscriptionRouter)
 app.use("/api/v1/playlists", playlistRouter)
 app.use("/api/v1/dashboard", dashboardRouter)
 app.use("/api/v1/tweets", tweetRouter)
+
+// Global error handler — catches errors thrown before/around controllers
+// (e.g. multer file-type/size rejections) and returns the standard JSON shape
+// instead of Express's default HTML error page.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    let statusCode = err.statusCode || 500
+    let message = err.message || "Internal Server Error"
+
+    if (err instanceof multer.MulterError) {
+        statusCode = 400
+        if (err.code === "LIMIT_FILE_SIZE") {
+            message = "File too large. Maximum allowed size is 200 MB."
+        }
+    }
+
+    if (!(err instanceof ApiError) && !(err instanceof multer.MulterError) && statusCode === 500) {
+        message = "Internal Server Error"
+    }
+
+    return res.status(statusCode).json({
+        statusCode,
+        success: false,
+        message,
+        errors: err.errors || [],
+    })
+})
 
 export {app}

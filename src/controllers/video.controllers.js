@@ -1,6 +1,8 @@
 import mongoose, {isValidObjectId} from "mongoose"
 import {Video} from "../models/video.model.js"
 import {User} from "../models/user.model.js"
+import {Likes} from "../models/likes.model.js"
+import {Subscription} from "../models/subscription.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
@@ -86,21 +88,59 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(400,"VideoId is required")
     }
 
-    const video=await Video.findById(videoId)
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400,"Invalid video id")
+    }
+
+    const video=await Video.findById(videoId).populate("owner", "username avatar fullName")
      if(!video){
         throw new ApiError(404,"Video not found")
     }
+
+    // Real like count for this video
+    const likeCount = await Likes.countDocuments({ video: videoId })
+
+    // Per-user state + watch history + view count (only when authenticated)
+    let isLiked = false
+    let isSubscribed = false
+
+    if (req.user?._id) {
+        const userId = req.user._id
+
+        isLiked = !!(await Likes.findOne({ video: videoId, likedBy: userId }))
+
+        if (video.owner?._id) {
+            isSubscribed = !!(await Subscription.findOne({
+                channel: video.owner._id,
+                subscriber: userId,
+            }))
+        }
+
+        // Record watch history (no duplicates) — skip the owner watching their own video
+        await User.findByIdAndUpdate(userId, {
+            $pull: { watchHistory: videoId },
+        })
+        await User.findByIdAndUpdate(userId, {
+            $push: { watchHistory: { $each: [videoId], $position: 0 } },
+        })
+    }
+
+    // Increment view count
+    await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } })
+    video.views += 1
+
+    const data = { ...video.toObject(), likeCount, isLiked, isSubscribed }
 
     return res
     .status(200)
     .json(
         new ApiResponse(
             200,
-            video,
+            data,
             "Video feteched succesfully"
         )
     )
-   
+
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
@@ -202,6 +242,10 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     const video = await Video.findById(videoId)
     if(!video) {
         throw new ApiError(404, "Video not found")
+    }
+
+    if(video.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403, "You are not authorized to change this video's publish status")
     }
 
     video.isPublished = !video.isPublished
