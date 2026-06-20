@@ -1,15 +1,33 @@
 import mongoose, {isValidObjectId} from "mongoose"
-import {Video, Video} from "../models/video.model.js"
+import {Video} from "../models/video.model.js"
 import {User} from "../models/user.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {uploadOnCloudinary, deleteFromCloudinary} from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
-    //TODO: get all videos based on query, sort, pagination
+    const { page = 1, limit = 10, query, sortBy = 'createdAt', sortType = 'desc', userId } = req.query
+
+    const filter = { isPublished: true }
+    if (query) filter.title = { $regex: query, $options: 'i' }
+    if (userId && isValidObjectId(userId)) filter.owner = userId
+
+    const sortOrder = sortType === 'asc' ? 1 : -1
+    const skip = (Number(page) - 1) * Number(limit)
+
+    const videos = await Video.find(filter)
+        .sort({ [sortBy]: sortOrder })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate("owner", "username avatar fullName")
+
+    const total = await Video.countDocuments(filter)
+
+    return res.status(200).json(
+        new ApiResponse(200, { videos, total, page: Number(page), limit: Number(limit) }, "Videos fetched successfully")
+    )
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -25,18 +43,21 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400,"thumbnail not uploaded")
     }
     const videofile= await uploadOnCloudinary(videoPath)
+    if(!videofile?.url){
+        throw new ApiError(500,"Video upload to cloud failed")
+    }
     const thumbnail= await uploadOnCloudinary(thumbnailPath)
-
-    await fs.unlink(videoPath);
-    await fs.unlink(thumbnailPath);
+    if(!thumbnail?.url){
+        throw new ApiError(500,"Thumbnail upload to cloud failed")
+    }
 
     const video= await Video.create({
         videoFile:videofile.url,
         thumbnail:thumbnail.url,
-        title:title,
-         owner: req.user?._id, 
-        description:description,
-        duration:videofile.duration,
+        title,
+        owner: req.user?._id,
+        description,
+        duration:videofile.duration || 0,
     })
 
     if(!video){
@@ -83,17 +104,20 @@ const getVideoById = asyncHandler(async (req, res) => {
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
-     //TODO: update video details like title, description, thumbnail
     const { videoId } = req.params
-     
+
     if(!videoId){
         throw new ApiError(400,"VideoId is required")
     }
-    
+
     const video=await Video.findById(videoId)
 
     if(!video){
         throw new ApiError(400,"Video not found")
+    }
+
+    if(video.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403,"You are not authorized to update this video")
     }
 
    const {title,description}=req.body
@@ -147,6 +171,15 @@ const deleteVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Video does not exist");
   }
 
+  if(videoExist.owner.toString() !== req.user._id.toString()){
+    throw new ApiError(403,"You are not authorized to delete this video")
+  }
+
+  await Promise.all([
+    deleteFromCloudinary(videoExist.videoFile, "video"),
+    deleteFromCloudinary(videoExist.thumbnail, "image"),
+  ])
+
   const video = await Video.findByIdAndDelete(videoId);
 
   return res.status(200).json(
@@ -166,24 +199,17 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         throw new ApiError(400, "videoId is required")
     }
 
-
-    const video = await Video.findByIdAndUpdate(videoId,
-        {
-            $set: {
-                ispublished: !video.ispublished
-            }
-        },
-        { new: true }
-    )
+    const video = await Video.findById(videoId)
     if(!video) {
         throw new ApiError(404, "Video not found")
-    }  
+    }
+
+    video.isPublished = !video.isPublished
+    await video.save()
 
     return res
     .status(200)
     .json(new ApiResponse(200, video, "Video publish status updated successfully"))
-
-
 })
 
 

@@ -19,7 +19,7 @@ const createPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid user id")
     }
 
-    const playlist=Playlist.create({
+    const playlist=await Playlist.create({
         name,
         description,
         owner:req.user._id,
@@ -49,11 +49,9 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
         throw new ApiError(400,"UserId wrong")
     }
 
-    const playlists=await Playlist.findOne(
-       { owner:userId}
-    ).populate("videos")
+    const playlists=await Playlist.find({ owner:userId }).populate("videos")
 
-      if(!playlists || playlists.length === 0){
+    if(!playlists || playlists.length === 0){
         throw new ApiError(404, "No playlists found")
     }
 
@@ -216,3 +214,12 @@ const deletePlaylist = asyncHandler(async (req, res) => {
     ))
 
 })
+
+export {
+    createPlaylist,
+    getUserPlaylists,
+    getPlaylistById,
+    addVideoToPlaylist,
+    removeVideoFromPlaylist,
+    deletePlaylist,
+}

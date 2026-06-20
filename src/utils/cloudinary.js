@@ -21,9 +21,22 @@ cloudinary.config({
         fs.unlinkSync(localFilePath)
         return response
     } catch (error) {
-        fs.unlinkSync(localFilePath)// remove the locally saved tempory file as the upload operation failed
+        console.error("Cloudinary upload error:", error.message)
+        try { fs.unlinkSync(localFilePath) } catch (_) {}
         return null
     }
     }
 
-export {uploadOnCloudinary}
+const deleteFromCloudinary = async (url, resourceType = "image") => {
+    try {
+        if (!url) return null
+        const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/)
+        const publicId = match?.[1]
+        if (!publicId) return null
+        return await cloudinary.uploader.destroy(publicId, { resource_type: resourceType })
+    } catch (error) {
+        return null
+    }
+}
+
+export {uploadOnCloudinary, deleteFromCloudinary}

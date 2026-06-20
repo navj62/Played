@@ -29,8 +29,8 @@ const userSchema=new mongoose.Schema({
     },
 
     avatar:{
-        type:String,//cloudinary url
-        required: true,
+        type:String,
+        default: "",
     },
 
     coverImage:{
@@ -68,7 +68,7 @@ userSchema.methods.isPasswordCorrect= async function(password){
 }
 
 userSchema.methods.genrateAccessToken=function(){
-    jwt.sign(
+    return jwt.sign(
     {
         _id:this._id,
         email:this.email,
@@ -83,10 +83,10 @@ userSchema.methods.genrateAccessToken=function(){
 }
 
 userSchema.methods.genrateRefreshToken=function(){
-    jwt.sign(
+    return jwt.sign(
     {
         _id:this._id,
-        
+
     },
     process.env.REFRESH_TOKEN_SECRET,
     {

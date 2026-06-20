@@ -242,12 +242,12 @@ CLOUDINARY_API_SECRET=
 - **Forms:** React Hook Form
 - **HTTP client:** Axios (with interceptors to attach access token and auto-refresh)
 
-### Setup
-Create the frontend as a sibling directory:
+### Location
+The frontend lives inside this repo at `client/`:
 ```
-/Users/navyajain/
-├── Backend/      ← this repo
-└── Frontend/     ← to be created: npm create vite@latest Frontend -- --template react
+/Users/navyajain/Backend/
+├── src/          ← backend
+└── client/       ← frontend (React + Vite)
 ```
 
 ### Pages to Build
@@ -323,9 +323,9 @@ cd /Users/navyajain/Backend
 npm run dev
 ```
 
-### Start Frontend (once created)
+### Start Frontend
 ```bash
-cd /Users/navyajain/Frontend
+cd /Users/navyajain/Backend/client
 npm run dev    # runs on http://localhost:5173
 ```
 

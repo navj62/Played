@@ -1,44 +1,49 @@
 import { Router } from "express";
-import { registerUser,loginUser,logoutUser,refreshAccessToken } from "../controllers/user.controllers.js";
+import {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    getUserChannelProfile,
+    getWatchHistory,
+} from "../controllers/user.controllers.js";
 import upload from "../middlewares/multer.js";
 import {verifyJWT} from "../middlewares/auth.middleware.js";
+import rateLimit from "express-rate-limit"
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { success: false, message: "Too many requests, please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+})
+
 const router=Router()
 
 router.route("/register").post(
+    authLimiter,
     upload.fields([
-        {
-            name:"avatar",
-            maxCount:1
-        },
-        {
-            name:"coverImage",
-            maxCount:1
-        }
+        { name:"avatar", maxCount:1 },
+        { name:"coverImage", maxCount:1 }
     ]),
     registerUser
 )
 
-router.route("/upload").post(
-      protect,
-    upload.fields([
-        {
-            name:"video",
-            maxCount:1
-        },
-        {
-            name:"thumbnail",
-            maxCount:1
-        }
-    ]),
-    publishAVideo
-)
+router.route("/login").post(authLimiter, loginUser)
+router.route("/refresh-token").post(refreshAccessToken)
 
-
-router.route("/login").post(loginUser)
-
-
-// secured rout
-router.route("/logout").post(verifyJWT,logoutUser)
-router.route("/refrsh-token").post(refreshAccessToken)
+// secured routes
+router.route("/logout").post(verifyJWT, logoutUser)
+router.route("/change-password").post(verifyJWT, changeCurrentPassword)
+router.route("/current-user").get(verifyJWT, getCurrentUser)
+router.route("/update-account").patch(verifyJWT, updateAccountDetails)
+router.route("/avatar").patch(verifyJWT, upload.fields([{ name:"avatar", maxCount:1 }]), updateUserAvatar)
+router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
+router.route("/history").get(verifyJWT, getWatchHistory)
 
 export default router

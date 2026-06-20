@@ -1,11 +1,9 @@
 import mongoose, {isValidObjectId} from "mongoose"
-import {Like} from "../models/like.model.js"
+import {Likes} from "../models/likes.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import { Video } from "../models/video.model.js"
-import { Likes } from "../models/likes.model.js"
-import { json } from "express"
 const toggleVideoLike = asyncHandler(async (req, res) => {
     const {videoId} = req.params
     //TODO: toggle like on video
@@ -38,9 +36,10 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
 
     // if like is not present
 
-    const like= await Like.create({
+    const like= await Likes.create({
         video:videoId,
-        likedBy:userId
+        likedBy:userId,
+        owner:userId,
     })
 
     if(!like){
@@ -74,13 +73,13 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
         throw new ApiError(400,"Userid is wrong")
     }
 
-    const existedLike= await Like.findOne({
+    const existedLike= await Likes.findOne({
        comment: commentId,
         likedBy:userId
     })
 
     if(existedLike){
-        await Like.findByIdAndDelete(existedLike._id)
+        await Likes.findByIdAndDelete(existedLike._id)
         return res
         .status(200)
         .json(
@@ -92,9 +91,10 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
         )
     }
 
-    const like= await Like.create({
+    const like= await Likes.create({
         comment:commentId,
-        likedBy:userId
+        likedBy:userId,
+        owner:userId,
     })
 
     if(!like){
@@ -124,12 +124,12 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
     }
     const userId =req.user._id
     
-    const likeExisted= await Like.findOne({
+    const likeExisted= await Likes.findOne({
         tweet:tweetId,
         likedBy:userId
     })
     if(likeExisted){
-        await Like.findByIdAndDelete(likeExisted._id)
+        await Likes.findByIdAndDelete(likeExisted._id)
         return res
         .status(200)
         .json(
@@ -141,9 +141,10 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
         )
     }
 
-    const like=await Like.create({
+    const like=await Likes.create({
         tweet:tweetId,
-        likedBy:userId
+        likedBy:userId,
+        owner:userId,
     })
 
     if(!like){
@@ -164,7 +165,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
 
 const getLikedVideos = asyncHandler(async (req, res) => {
 
-    const LikedVideos=await Like.aggregate([
+    const LikedVideos=await Likes.aggregate([
         {
             $match:{
                likedBy:new mongoose.Types.ObjectId(req.user._id)
@@ -181,12 +182,15 @@ const getLikedVideos = asyncHandler(async (req, res) => {
         {
             $addFields:{
                 LikedVideos:{
-                    $arrayElemAt: ["$LikedVideos", 0] 
+                    $arrayElemAt: ["$LikedVideos", 0]
                 }
             }
         }
-
     ])
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, LikedVideos, "Liked videos fetched successfully"))
 })
 
 export {

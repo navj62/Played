@@ -1,16 +1,30 @@
 import mongoose from "mongoose"
-import {Comment} from "../models/comment.model.js"
+import {Comment} from "../models/comments.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import { Video } from "../models/video.model.js"
-import { json } from "express"
 
 const getVideoComments = asyncHandler(async (req, res) => {
-    //TODO: get all comments for a video
     const {videoId} = req.params
     const {page = 1, limit = 10} = req.query
 
+    if(!videoId || !mongoose.isValidObjectId(videoId)){
+        throw new ApiError(400,"Valid videoId is required")
+    }
+
+    const skip = (Number(page) - 1) * Number(limit)
+    const comments = await Comment.find({ video: videoId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate("owner","username avatar fullName")
+
+    const total = await Comment.countDocuments({ video: videoId })
+
+    return res.status(200).json(
+        new ApiResponse(200, { comments, total, page: Number(page), limit: Number(limit) }, "Comments fetched successfully")
+    )
 })
 
 const addComment = asyncHandler(async (req, res) => {
@@ -79,8 +93,12 @@ const updateComment = asyncHandler(async (req, res) => {
         throw new ApiError(400,"Comment not found")
     }
 
+    if(comment.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403,"You are not authorized to update this comment")
+    }
+
     comment.content=content
-    
+
     await comment.save()
 
     return res
@@ -104,6 +122,9 @@ const deleteComment = asyncHandler(async (req, res) => {
     const commentExist=await Comment.findById(commentId)
     if(!commentExist){
         throw new ApiError(400,"Comment not found")
+    }
+    if(commentExist.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403,"You are not authorized to delete this comment")
     }
     const comment= await Comment.findByIdAndDelete(commentId)
      
