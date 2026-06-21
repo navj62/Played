@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser"
 import multer from "multer"
 import mongoose from "mongoose"
 import { ApiError } from "./utils/ApiError.js"
+import connectDB from "./db/index.js"
 const app= express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
@@ -44,6 +45,19 @@ app.get("/health", (req, res) => {
         db: dbConnected ? "connected" : "disconnected",
         uptime: process.uptime(),
     })
+})
+
+// Ensure the DB is connected before any route handler runs. connectDB() caches
+// the connection (see db/index.js), so this is a no-op on warm invocations. This
+// lives here — not only in api/index.js — so the connection is established no
+// matter which module the serverless platform loads as the function entry.
+app.use(async (req, res, next) => {
+    try {
+        await connectDB()
+        next()
+    } catch (err) {
+        next(err)
+    }
 })
 
 // Routes import
@@ -93,4 +107,8 @@ app.use((err, req, res, next) => {
     })
 })
 
+// Named export for src/index.js (local server) and api/index.js; default export
+// so the platform's function loader, which expects a default-exported handler,
+// gets the Express app itself (an Express app is a valid (req, res) handler).
 export {app}
+export default app

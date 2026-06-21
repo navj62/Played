@@ -1,12 +1,9 @@
-// Vercel serverless entry point. Wraps the existing Express app as a single
-// serverless function. Route definitions and controllers are unchanged — every
-// request is funneled here (see vercel.json) and handed to the Express app.
+// Vercel serverless entry point. The Express app is exported directly as the
+// function's default handler — Vercel/@vercel/node accepts an Express app as a
+// (req, res) handler. The DB connection is established lazily by a middleware
+// inside the app (see src/app.js), so it works whether the platform loads this
+// module or src/app.js as the entry.
 import "dotenv/config";
-import { app } from "../src/app.js";
-import connectDB from "../src/db/index.js";
+import app from "../src/app.js";
 
-export default async function handler(req, res) {
-    // Reuses the cached connection on warm invocations; opens one on cold start.
-    await connectDB();
-    return app(req, res);
-}
+export default app;
