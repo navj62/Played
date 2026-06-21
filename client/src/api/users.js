@@ -1,8 +1,13 @@
 import api from './axios'
 
+// avatar/cover uploads go through Cloudinary — allow more time than the default,
+// but still time out eventually so a stuck request surfaces a clear error
+const UPLOAD_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+
 export const register = (formData) =>
   api.post('/users/register', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT,
   }).then((r) => r.data.data)
 
 export const login = (data) =>
@@ -26,6 +31,7 @@ export const updateAccount = (data) =>
 export const updateAvatar = (formData) =>
   api.patch('/users/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT,
   }).then((r) => r.data.data)
 
 export const changePassword = (data) =>

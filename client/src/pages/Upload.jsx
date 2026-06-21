@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { UploadCloud, Film, ImagePlus, X } from 'lucide-react'
 import { useState, useRef } from 'react'
 import { uploadVideo } from '../api/videos'
@@ -12,6 +12,7 @@ export default function Upload() {
   const videoRef = useRef(null)
   const thumbRef = useRef(null)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { register, handleSubmit, formState: { errors }, setError } = useForm()
 
@@ -27,7 +28,14 @@ export default function Upload() {
       fd.append('thumbnail', data.thumbnail[0])
       return uploadVideo(fd, setUploadProgress)
     },
-    onSuccess: (video) => navigate(`/watch/${video._id}`),
+    onSuccess: (video) => {
+      // Drop stale caches so the new video shows up immediately on the
+      // feed, the dashboard and the channel page (staleTime is 5 min).
+      queryClient.invalidateQueries({ queryKey: ['videos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-videos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      navigate(`/watch/${video._id}`)
+    },
     onError: (err) => setError('root', { message: err.response?.data?.message || 'Upload failed' }),
   })
 

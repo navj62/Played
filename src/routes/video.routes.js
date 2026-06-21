@@ -17,6 +17,9 @@ const uploadLimiter = rateLimit({
     message: { success: false, message: "Upload limit reached. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
+    // The limit exists to curb upload abuse in production; skip it elsewhere
+    // so local development isn't throttled.
+    skip: () => process.env.NODE_ENV !== "production",
 })
 
 const router = Router()
