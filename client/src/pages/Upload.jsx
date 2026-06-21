@@ -5,6 +5,10 @@ import { UploadCloud, Film, ImagePlus, X } from 'lucide-react'
 import { useState, useRef } from 'react'
 import { uploadVideo } from '../api/videos'
 
+// Keep in sync with the backend caps (src/middlewares/multer.js).
+const MAX_VIDEO_BYTES = 4 * 1024 * 1024 // 4 MB
+const MAX_THUMB_BYTES = 2 * 1024 * 1024 // 2 MB
+
 export default function Upload() {
   const [videoPreview, setVideoPreview] = useState(null)
   const [thumbPreview, setThumbPreview] = useState(null)
@@ -14,10 +18,18 @@ export default function Upload() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const { register, handleSubmit, formState: { errors }, setError } = useForm()
+  const { register, handleSubmit, formState: { errors }, setError, clearErrors } = useForm()
 
-  const { ref: videoFormRef, onChange: onVideoChange, ...videoRest } = register('video', { required: 'Video file is required' })
-  const { ref: thumbFormRef, onChange: onThumbChange, ...thumbRest } = register('thumbnail', { required: 'Thumbnail is required' })
+  const { ref: videoFormRef, onChange: onVideoChange, ...videoRest } = register('video', {
+    required: 'Video file is required',
+    validate: (files) =>
+      !files?.[0] || files[0].size <= MAX_VIDEO_BYTES || 'Video must be 4MB or smaller',
+  })
+  const { ref: thumbFormRef, onChange: onThumbChange, ...thumbRest } = register('thumbnail', {
+    required: 'Thumbnail is required',
+    validate: (files) =>
+      !files?.[0] || files[0].size <= MAX_THUMB_BYTES || 'Thumbnail must be 2MB or smaller',
+  })
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => {
@@ -77,7 +89,7 @@ export default function Upload() {
               <>
                 <Film className="w-10 h-10 text-ct-subtle group-hover:text-ct-red transition-colors duration-150 mx-auto mb-3" />
                 <p className="text-ct-muted text-sm">Click to select a video</p>
-                <p className="text-ct-subtle text-xs mt-1">MP4, MOV up to 200MB</p>
+                <p className="text-ct-subtle text-xs mt-1">MP4, MOV — max 4MB</p>
               </>
             )}
           </div>
@@ -90,7 +102,14 @@ export default function Upload() {
             onChange={(e) => {
               onVideoChange(e)
               const file = e.target.files?.[0]
-              if (file) setVideoPreview(URL.createObjectURL(file))
+              if (!file) return
+              if (file.size > MAX_VIDEO_BYTES) {
+                setError('video', { type: 'manual', message: 'Video must be 4MB or smaller' })
+                setVideoPreview(null)
+                return
+              }
+              clearErrors('video')
+              setVideoPreview(URL.createObjectURL(file))
             }}
           />
           {errors.video && <p className="text-xs text-ct-red mt-1">{errors.video.message}</p>}
@@ -120,6 +139,7 @@ export default function Upload() {
               <div className="aspect-video flex flex-col items-center justify-center">
                 <ImagePlus className="w-8 h-8 text-ct-subtle group-hover:text-ct-red transition-colors duration-150 mb-2" />
                 <p className="text-ct-muted text-sm">Select thumbnail image</p>
+                <p className="text-ct-subtle text-xs mt-1">JPG, PNG — max 2MB</p>
               </div>
             )}
           </div>
@@ -132,7 +152,14 @@ export default function Upload() {
             onChange={(e) => {
               onThumbChange(e)
               const file = e.target.files?.[0]
-              if (file) setThumbPreview(URL.createObjectURL(file))
+              if (!file) return
+              if (file.size > MAX_THUMB_BYTES) {
+                setError('thumbnail', { type: 'manual', message: 'Thumbnail must be 2MB or smaller' })
+                setThumbPreview(null)
+                return
+              }
+              clearErrors('thumbnail')
+              setThumbPreview(URL.createObjectURL(file))
             }}
           />
           {errors.thumbnail && <p className="text-xs text-ct-red mt-1">{errors.thumbnail.message}</p>}

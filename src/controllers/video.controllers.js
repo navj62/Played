@@ -33,36 +33,57 @@ const getAllVideos = asyncHandler(async (req, res) => {
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
-    // TODO: get video, upload to cloudinary, create video
     const {title, description} = req.body
-    const videoPath = req.files?.video?.[0]?.path;
-    const thumbnailPath = req.files?.thumbnail?.[0]?.path;
+    const videoInput = req.files?.video?.[0];
+    const thumbnailInput = req.files?.thumbnail?.[0];
 
-    if(!videoPath){
+    if(!title?.trim()){
+        throw new ApiError(400,"Title is required")
+    }
+    if(!description?.trim()){
+        throw new ApiError(400,"Description is required")
+    }
+    if(!videoInput){
         throw new ApiError(400,"Video not uploaded")
     }
-     if(!thumbnailPath){
+     if(!thumbnailInput){
         throw new ApiError(400,"thumbnail not uploaded")
     }
-    const videofile= await uploadOnCloudinary(videoPath)
-    if(!videofile?.url){
-        throw new ApiError(500,"Video upload to cloud failed")
-    }
-    const thumbnail= await uploadOnCloudinary(thumbnailPath)
+
+    // Upload the small thumbnail first so an invalid image fails fast,
+    // before we spend time pushing the video to Cloudinary.
+    const thumbnail= await uploadOnCloudinary(thumbnailInput.buffer, thumbnailInput.mimetype)
     if(!thumbnail?.url){
         throw new ApiError(500,"Thumbnail upload to cloud failed")
     }
 
-    const video= await Video.create({
-        videoFile:videofile.url,
-        thumbnail:thumbnail.url,
-        title,
-        owner: req.user?._id,
-        description,
-        duration:videofile.duration || 0,
-    })
+    const videofile= await uploadOnCloudinary(videoInput.buffer, videoInput.mimetype)
+    if(!videofile?.url){
+        // Thumbnail already landed on Cloudinary — clean it up so we don't orphan it.
+        await deleteFromCloudinary(thumbnail.url, "image")
+        throw new ApiError(500,"Video upload to cloud failed")
+    }
+
+    let video
+    try {
+        video = await Video.create({
+            videoFile:videofile.url,
+            thumbnail:thumbnail.url,
+            title,
+            owner: req.user?._id,
+            description,
+            duration:videofile.duration || 0,
+        })
+    } catch (err) {
+        video = null
+    }
 
     if(!video){
+        // Roll back both uploaded assets so a failed DB write leaves no orphans.
+        await Promise.all([
+            deleteFromCloudinary(videofile.url, "video"),
+            deleteFromCloudinary(thumbnail.url, "image"),
+        ])
         throw new ApiError(500,"Something went wrong while uploading video")
     }
 
@@ -172,10 +193,10 @@ const updateVideo = asyncHandler(async (req, res) => {
 
    video.title=title
    video.description=description
-   const thumbnailPath = req.files?.thumbnail?.[0]?.path;
+   const thumbnailInput = req.files?.thumbnail?.[0];
 
-  if (thumbnailPath) {
-    const thumbnail = await uploadOnCloudinary(thumbnailPath);
+  if (thumbnailInput) {
+    const thumbnail = await uploadOnCloudinary(thumbnailInput.buffer, thumbnailInput.mimetype);
 
     if (!thumbnail?.url) {
       throw new ApiError(400, "Thumbnail upload failed");

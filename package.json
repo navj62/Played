@@ -4,7 +4,11 @@
   "description": "Backend by navya",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
+    "start": "node src/index.js",
     "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
     "dev:client": "npm run dev --prefix client",
     "dev:all": "concurrently -n \"server,client\" -c \"yellow,cyan\" \"npm run dev\" \"npm run dev:client\"",

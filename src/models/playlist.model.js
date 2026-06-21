@@ -3,11 +3,11 @@ import mongoose,{Schema} from "mongoose";
 const playlistSchema=new Schema({
     name:{
         type:String,
-        require:true,
+        required:true,
     },
     description:{
         type:String,
-        require:true,
+        required:true,
     },
     owner:{
         type:Schema.Types.ObjectId,

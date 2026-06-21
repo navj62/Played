@@ -4,7 +4,7 @@ import { ApiError } from '../utils/ApiError.js';
 import {ApiResponse } from '../utils/ApiResponse.js'
 import { uploadOnCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import jwt from "jsonwebtoken"
-import mongoose, { set } from 'mongoose';
+import mongoose from 'mongoose';
 const genrateAccessAndRefreshToken=async(userId)=>
     {
     try {
@@ -61,11 +61,11 @@ const registerUser=asyncHandler(async(req,res)=>{
         throw new ApiError(409,"User with same email and username is alredy existed")
     }
 
-   const avatarLocalPath= req.files?.avatar?.[0]?.path
-   const coverImageLocalPath=req.files?.coverImage?.[0]?.path
+   const avatarFile= req.files?.avatar?.[0]
+   const coverImageFile=req.files?.coverImage?.[0]
 
-   const avatar= avatarLocalPath ? await uploadOnCloudinary(avatarLocalPath) : null
-   const coverImage= coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null
+   const avatar= avatarFile ? await uploadOnCloudinary(avatarFile.buffer, avatarFile.mimetype) : null
+   const coverImage= coverImageFile ? await uploadOnCloudinary(coverImageFile.buffer, coverImageFile.mimetype) : null
 
   const user=await User.create({
     fullName,
@@ -131,7 +131,10 @@ const loginUser=asyncHandler(async(req,res)=>{
 
     const options={
         httpOnly:true,
-        secure:process.env.NODE_ENV==="production"
+        secure:process.env.NODE_ENV==="production",
+        // Cross-site cookies (frontend and backend on different domains in
+        // production) require SameSite=None + Secure. Lax keeps localhost working.
+        sameSite:process.env.NODE_ENV==="production" ? "none" : "lax"
     }
 
     return res.status(200)
@@ -166,7 +169,10 @@ const logoutUser=asyncHandler(async(req,res)=>{
 )
          const options={
         httpOnly:true,
-        secure:process.env.NODE_ENV==="production"
+        secure:process.env.NODE_ENV==="production",
+        // Cross-site cookies (frontend and backend on different domains in
+        // production) require SameSite=None + Secure. Lax keeps localhost working.
+        sameSite:process.env.NODE_ENV==="production" ? "none" : "lax"
     }
      
     return res.status(200)
@@ -205,9 +211,10 @@ const refreshAccessToken=asyncHandler(async(req,res)=>{
  
      const options={
          httpOnly:true,
-         secure:true
+         secure:process.env.NODE_ENV==="production",
+         sameSite:process.env.NODE_ENV==="production" ? "none" : "lax"
      }
- 
+
      const {accessToken,refreshToken}=await genrateAccessAndRefreshToken(user._id)
  
      return res
@@ -232,6 +239,9 @@ const changeCurrentPassword=asyncHandler(async(req,res)=>{
     //take oldPassword and new pass form fronentend
    // verif the old pass if it is correct proced
     const {oldPassword,newPassword}=req.body;
+    if(!oldPassword || !newPassword){
+        throw new ApiError(400,"Old and new passwords are required")
+    }
     const user= await User.findById(req.user?._id)
     const isPasswordCorrect=await user.isPasswordCorrect(oldPassword)
 
@@ -282,11 +292,11 @@ const updateAccountDetails=asyncHandler(async(req,res)=>{
 })
 
 const updateUserAvatar=asyncHandler(async(req,res)=>{
-   const avatarpath = req.files?.avatar?.[0]?.path;
-    if(!avatarpath){
+   const avatarFile = req.files?.avatar?.[0];
+    if(!avatarFile){
         throw new ApiError(400,"Avatar not found")
     }
-    const avatar=await uploadOnCloudinary(avatarpath)
+    const avatar=await uploadOnCloudinary(avatarFile.buffer, avatarFile.mimetype)
 
     if(!avatar?.url){
         throw new ApiError(400,"Avatar not uploaded")

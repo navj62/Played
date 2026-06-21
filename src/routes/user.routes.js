@@ -11,7 +11,7 @@ import {
     getUserChannelProfile,
     getWatchHistory,
 } from "../controllers/user.controllers.js";
-import upload from "../middlewares/multer.js";
+import upload, { uploadImage } from "../middlewares/multer.js";
 import {verifyJWT} from "../middlewares/auth.middleware.js";
 import rateLimit from "express-rate-limit"
 
@@ -27,7 +27,7 @@ const router=Router()
 
 router.route("/register").post(
     authLimiter,
-    upload.fields([
+    uploadImage.fields([
         { name:"avatar", maxCount:1 },
         { name:"coverImage", maxCount:1 }
     ]),
@@ -35,14 +35,14 @@ router.route("/register").post(
 )
 
 router.route("/login").post(authLimiter, loginUser)
-router.route("/refresh-token").post(refreshAccessToken)
+router.route("/refresh-token").post(authLimiter, refreshAccessToken)
 
 // secured routes
 router.route("/logout").post(verifyJWT, logoutUser)
-router.route("/change-password").post(verifyJWT, changeCurrentPassword)
+router.route("/change-password").post(authLimiter, verifyJWT, changeCurrentPassword)
 router.route("/current-user").get(verifyJWT, getCurrentUser)
 router.route("/update-account").patch(verifyJWT, updateAccountDetails)
-router.route("/avatar").patch(verifyJWT, upload.fields([{ name:"avatar", maxCount:1 }]), updateUserAvatar)
+router.route("/avatar").patch(verifyJWT, uploadImage.fields([{ name:"avatar", maxCount:1 }]), updateUserAvatar)
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
 router.route("/history").get(verifyJWT, getWatchHistory)
 

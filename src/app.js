@@ -2,6 +2,7 @@ import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import multer from "multer"
+import mongoose from "mongoose"
 import { ApiError } from "./utils/ApiError.js"
 const app= express();
 
@@ -34,8 +35,16 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 
-// Health check
-app.get("/health", (req, res) => res.status(200).json({ ok: true, uptime: process.uptime() }))
+// Health check — reports real DB connectivity, not just a static 200.
+app.get("/health", (req, res) => {
+    const dbState = mongoose.connection.readyState // 1 = connected
+    const dbConnected = dbState === 1
+    return res.status(dbConnected ? 200 : 503).json({
+        ok: dbConnected,
+        db: dbConnected ? "connected" : "disconnected",
+        uptime: process.uptime(),
+    })
+})
 
 // Routes import
 import userRouter from "./routes/user.routes.js"
@@ -68,7 +77,7 @@ app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         statusCode = 400
         if (err.code === "LIMIT_FILE_SIZE") {
-            message = "File too large. Maximum allowed size is 200 MB."
+            message = "File too large. Maximum size is 4 MB for video and 2 MB for images."
         }
     }
 

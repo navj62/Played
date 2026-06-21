@@ -1,5 +1,4 @@
 import {v2 as cloudinary} from 'cloudinary';
-import fs from 'fs'
 
 cloudinary.config({
   cloud_name:process.env.CLOUDINARY_CLOUD_NAME,
@@ -8,21 +7,22 @@ cloudinary.config({
 });
 
 
-    const uploadOnCloudinary = async(localFilePath)=>{
+// Uploads an in-memory file buffer (from multer's memoryStorage) straight to
+// Cloudinary — no disk involved, which is required on serverless. Files are
+// capped small (see multer.js), so a plain non-chunked upload() is sufficient.
+const uploadOnCloudinary = async(fileBuffer, mimetype)=>{
     try {
-        if(!localFilePath) return null
-        //upload the file on cloudinary
-      const response=  await cloudinary.uploader.upload(localFilePath,{
-            resource_type:"auto",
+        if(!fileBuffer) return null
 
+        const dataUri = `data:${mimetype || 'application/octet-stream'};base64,${fileBuffer.toString('base64')}`
+
+        const response = await cloudinary.uploader.upload(dataUri, {
+            resource_type: "auto",
         })
-        //file has been uploaded
-        console.log("File is uploaded on cloudinary", response.url )
-        fs.unlinkSync(localFilePath)
+
         return response
     } catch (error) {
-        console.error("Cloudinary upload error:", error.message)
-        try { fs.unlinkSync(localFilePath) } catch (_) {}
+        console.error("Cloudinary upload error:", error?.message || error)
         return null
     }
     }

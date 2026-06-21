@@ -8,7 +8,7 @@ import {
     togglePublishStatus,
 } from "../controllers/video.controllers.js"
 import { verifyJWT, verifyJWTOptional } from "../middlewares/auth.middleware.js"
-import upload from "../middlewares/multer.js"
+import upload, { uploadImage } from "../middlewares/multer.js"
 import rateLimit from "express-rate-limit"
 
 const uploadLimiter = rateLimit({
@@ -33,7 +33,7 @@ router.route("/")
 
 router.route("/:videoId")
     .get(verifyJWTOptional, getVideoById)
-    .patch(verifyJWT, upload.fields([{ name: "thumbnail", maxCount: 1 }]), updateVideo)
+    .patch(verifyJWT, uploadImage.fields([{ name: "thumbnail", maxCount: 1 }]), updateVideo)
     .delete(verifyJWT, deleteVideo)
 
 router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus)
